@@ -12,6 +12,31 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Weather Server</title>
+      <style>
+        body {
+          background-color:rgb(126, 162, 194);
+          font-family: sans-serif;
+          text-align: center;
+          margin-top: 20%;
+        }
+        h1 {
+          color: #333;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Сервер працює!</h1>
+    </body>
+    </html>
+  `);
+});
+
 app.post('/api/data', async (req, res) => {
   const { temperature, humidity } = req.body;
 
