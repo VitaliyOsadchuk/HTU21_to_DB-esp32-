@@ -38,14 +38,18 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/data', async (req, res) => {
-  const { temperature, humidity } = req.body;
+  const { temperature, humidity, pressure } = req.body;
 
-  if (typeof temperature !== 'number' || typeof humidity !== 'number') {
+  if (
+    typeof temperature !== 'number' ||
+    typeof humidity !== 'number' ||
+    typeof pressure !== 'number'
+  ) {
     return res.status(400).json({ message: 'Invalid data format' });
   }
 
   try {
-    const newMeasurement = new Measurement({ temperature, humidity });
+    const newMeasurement = new Measurement({ temperature, humidity, pressure });
     await newMeasurement.save();
     res.status(201).json({ message: 'Data saved successfully' });
   } catch (err) {
