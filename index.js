@@ -38,24 +38,37 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/data', async (req, res) => {
-  const { temperature, humidity, pressure } = req.body;
+  const { time, htuT, htuH, bmeT, bmeH, bmeP } = req.body;
 
   if (
-    typeof temperature !== 'number' ||
-    typeof humidity !== 'number' ||
-    typeof pressure !== 'number'
+    !time ||
+    typeof htuT !== 'number' ||
+    typeof htuH !== 'number' ||
+    typeof bmeT !== 'number' ||
+    typeof bmeH !== 'number' ||
+    typeof bmeP !== 'number'
   ) {
-    return res.status(400).json({ message: 'Invalid data format' });
+    return res.status(400).json({ message: 'Invalid time data!' });
   }
 
   try {
-    const newMeasurement = new Measurement({ temperature, humidity, pressure });
+    const newMeasurement = new Measurement({
+      time: new Date(time),  // перетворення ISO-рядка на Date
+      htuT,
+      htuH,
+      bmeT,
+      bmeH,
+      bmeP
+    });
+
     await newMeasurement.save();
     res.status(201).json({ message: 'Data saved successfully' });
   } catch (err) {
+    console.error('Save error:', err);
     res.status(500).json({ message: 'Server error', error: err });
   }
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
