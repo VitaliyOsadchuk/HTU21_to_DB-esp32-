@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
 const mongoose = require('mongoose');
 const Measurement = require('./models/Measurement');
 const cors = require('cors');
@@ -7,17 +8,19 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(helmet());
 
+// Підключення до DB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB Atlas'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .then(() => console.log('Connected to DB'))
+  .catch((err) => console.error('DB connection error:', err));
 
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Weather Server</title>
+      <title>KI401 Osadchuk</title>
       <style>
         body {
           background-color:rgb(126, 162, 194);
@@ -37,23 +40,31 @@ app.get('/', (req, res) => {
   `);
 });
 
+// POST /api/data 
 app.post('/api/data', async (req, res) => {
   const { time, htuT, htuH, bmeT, bmeH, bmeP } = req.body;
 
+  console.log('Request:', req.body);
+
   if (
     !time ||
-    typeof htuT !== 'number' ||
-    typeof htuH !== 'number' ||
-    typeof bmeT !== 'number' ||
-    typeof bmeH !== 'number' ||
-    typeof bmeP !== 'number'
+    !Number.isFinite(htuT) ||
+    !Number.isFinite(htuH) ||
+    !Number.isFinite(bmeT) ||
+    !Number.isFinite(bmeH) ||
+    !Number.isFinite(bmeP)
   ) {
-    return res.status(400).json({ message: 'Invalid time data!' });
+    return res.status(400).json({ message: 'Invalid data format' });
+  }
+
+  const parsedTime = new Date(time);
+  if (isNaN(parsedTime)) {
+    return res.status(400).json({ message: 'Invalid time format' });
   }
 
   try {
     const newMeasurement = new Measurement({
-      time: new Date(time),  // перетворення ISO-рядка на Date
+      time: parsedTime,
       htuT,
       htuH,
       bmeT,
@@ -62,13 +73,15 @@ app.post('/api/data', async (req, res) => {
     });
 
     await newMeasurement.save();
+    console.log('Data saved successfully');
+
     res.status(201).json({ message: 'Data saved successfully' });
   } catch (err) {
     console.error('Save error:', err);
-    res.status(500).json({ message: 'Server error', error: err });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-
+// Запуск сервера
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
