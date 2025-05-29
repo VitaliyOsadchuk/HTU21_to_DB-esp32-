@@ -39,38 +39,76 @@ app.get('/', (req, res) => {
   `);
 });
 
+
 app.get('/api/data', async (req, res) => {
   const { range = 'week' } = req.query;
-  const now = new Date();
-  let fromDate;
-
-  switch (range) {
-    case 'month':
-      fromDate = new Date(now.setDate(now.getDate() - 30));
-      break;
-    case '6months':
-      fromDate = new Date(now.setMonth(now.getMonth() - 6));
-      break;
-    case 'year':
-      fromDate = new Date(now.setFullYear(now.getFullYear() - 1));
-      break;
-    case 'week':
-    default:
-      fromDate = new Date(Date.now() - 604800000);
-      break;
-  }
 
   try {
-    const data = await Measurement.find({
-      time: { $gte: fromDate }
-    }).sort({ time: 1 });
+    if (range === '3hours') {
+      const latest = await Measurement.findOne().sort({ time: -1 }).lean();
 
+      if (!latest) {
+        return res.status(404).json({ message: 'No latest data' });
+      }
+
+      const latestTime = new Date(latest.time);
+      const targetTime = new Date(latestTime.getTime() - 3 * 60 * 60 * 1000); // Цільовий час — 3 год тому
+
+      // Вікно для пошуку запису близько до цільового часу: +/- година
+      const windowStart = new Date(targetTime.getTime() - 60 * 60 * 1000);
+      const windowEnd = new Date(targetTime.getTime() + 60 * 60 * 1000);
+
+      const candidates = await Measurement.find({
+        time: { $gte: windowStart, $lte: windowEnd }
+      }).sort({ time: 1 }).lean();
+
+      if (!candidates.length) {
+        return res.status(404).json({ message: 'No data 3 hours ago' });
+      }
+
+      const closest = candidates.reduce((prev, curr) =>
+        Math.abs(new Date(curr.time) - targetTime) < Math.abs(new Date(prev.time) - targetTime)
+          ? curr
+          : prev
+      );
+
+      // Якщо closest і latest — один і той же
+      if (new Date(closest.time).getTime() === new Date(latest.time).getTime()) {
+        return res.status(404).json({ message: 'Insufficient distinct data' });
+      }
+
+      return res.json([closest, latest]);
+    }
+
+    // Інші діапазони часу
+    const now = new Date();
+    let fromDate;
+
+    switch (range) {
+      case 'month':
+        fromDate = new Date(now.setDate(now.getDate() - 30));
+        break;
+      case '6months':
+        fromDate = new Date(now.setMonth(now.getMonth() - 6));
+        break;
+      case 'year':
+        fromDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        break;
+      case 'week':
+      default:
+        fromDate = new Date(Date.now() - 604800000);
+        break;
+    }
+
+    const data = await Measurement.find({ time: { $gte: fromDate } }).sort({ time: 1 });
     res.json(data);
   } catch (err) {
     console.error('Error fetching measurements:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
+
+
 
 app.get('/api/data/latest', async (req, res) => {
   try {
