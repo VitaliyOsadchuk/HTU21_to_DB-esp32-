@@ -1,24 +1,22 @@
-require('dotenv').config();
-const express = require('express');
-const helmet = require('helmet');
-const mongoose = require('mongoose');
-const Measurement = require('./models/Measurement');
-// date-fns-tz may export differently depending on environment (CJS vs ESM).
-// Require robustly and support packages that expose exports under `.default`.
-const _dateFnsTz = require('date-fns-tz');
-const zonedTimeToUtc = _dateFnsTz.zonedTimeToUtc || (_dateFnsTz.default && _dateFnsTz.default.zonedTimeToUtc);
-const cors = require('cors');
+require("dotenv").config();
+const express = require("express");
+const helmet = require("helmet");
+const mongoose = require("mongoose");
+const Measurement = require("./models/Measurement");
+const { zonedTimeToUtc } = require("date-fns-tz");
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(helmet());
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to DB'))
-  .catch((err) => console.error('DB connection error:', err));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("Connected to DB"))
+  .catch((err) => console.error("DB connection error:", err));
 
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html>
@@ -43,16 +41,15 @@ app.get('/', (req, res) => {
   `);
 });
 
-
-app.get('/api/data', async (req, res) => {
-  const { range = 'week' } = req.query;
+app.get("/api/data", async (req, res) => {
+  const { range = "week" } = req.query;
 
   try {
-    if (range === '3hours') {
+    if (range === "3hours") {
       const latest = await Measurement.findOne().sort({ time: -1 }).lean();
 
       if (!latest) {
-        return res.status(404).json({ message: 'No latest data' });
+        return res.status(404).json({ message: "No latest data" });
       }
 
       const latestTime = new Date(latest.time);
@@ -63,22 +60,27 @@ app.get('/api/data', async (req, res) => {
       const windowEnd = new Date(targetTime.getTime() + 60 * 60 * 1000);
 
       const candidates = await Measurement.find({
-        time: { $gte: windowStart, $lte: windowEnd }
-      }).sort({ time: 1 }).lean();
+        time: { $gte: windowStart, $lte: windowEnd },
+      })
+        .sort({ time: 1 })
+        .lean();
 
       if (!candidates.length) {
-        return res.status(404).json({ message: 'No data 3 hours ago' });
+        return res.status(404).json({ message: "No data 3 hours ago" });
       }
 
       const closest = candidates.reduce((prev, curr) =>
-        Math.abs(new Date(curr.time) - targetTime) < Math.abs(new Date(prev.time) - targetTime)
+        Math.abs(new Date(curr.time) - targetTime) <
+        Math.abs(new Date(prev.time) - targetTime)
           ? curr
           : prev
       );
 
       // Якщо closest і latest — один і той же
-      if (new Date(closest.time).getTime() === new Date(latest.time).getTime()) {
-        return res.status(404).json({ message: 'Insufficient distinct data' });
+      if (
+        new Date(closest.time).getTime() === new Date(latest.time).getTime()
+      ) {
+        return res.status(404).json({ message: "Insufficient distinct data" });
       }
 
       return res.json([closest, latest]);
@@ -89,51 +91,49 @@ app.get('/api/data', async (req, res) => {
     let fromDate;
 
     switch (range) {
-      case 'month':
+      case "month":
         fromDate = new Date(now.setDate(now.getDate() - 30));
         break;
-      case '6months':
+      case "6months":
         fromDate = new Date(now.setMonth(now.getMonth() - 6));
         break;
-      case 'year':
+      case "year":
         fromDate = new Date(now.setFullYear(now.getFullYear() - 1));
         break;
-      case 'week':
+      case "week":
       default:
         fromDate = new Date(Date.now() - 604800000);
         break;
     }
 
-    const data = await Measurement.find({ time: { $gte: fromDate } }).sort({ time: 1 });
+    const data = await Measurement.find({ time: { $gte: fromDate } }).sort({
+      time: 1,
+    });
     res.json(data);
   } catch (err) {
-    console.error('Error fetching measurements:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("Error fetching measurements:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
-
-
-app.get('/api/data/latest', async (req, res) => {
+app.get("/api/data/latest", async (req, res) => {
   try {
     const latest = await Measurement.findOne().sort({ time: -1 });
     if (!latest) {
-      return res.status(404).json({ message: 'No data found' });
+      return res.status(404).json({ message: "No data found" });
     }
     res.json(latest);
   } catch (err) {
-    console.error('Error fetching latest measurement:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("Error fetching latest measurement:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
-
-app.post('/api/data', async (req, res) => {
+app.post("/api/data", async (req, res) => {
   const { time, htuT, htuH, bmeT, bmeH, bmeP } = req.body;
-  // Use IANA timezone name. 'Europe/Kyiv' is the current canonical name.
-  const timeZone = 'Europe/Kyiv';
+  const timeZone = "Europe/Kyiv";
 
-  console.log('Request:', req.body);
+  console.log("Request:", req.body);
 
   if (
     !time ||
@@ -143,25 +143,27 @@ app.post('/api/data', async (req, res) => {
     !Number.isFinite(bmeH) ||
     !Number.isFinite(bmeP)
   ) {
-    return res.status(400).json({ message: 'Invalid data format' });
+    return res.status(400).json({ message: "Invalid data format" });
   }
 
   let parsedTime;
   try {
-    if (typeof zonedTimeToUtc === 'function') {
+    if (typeof zonedTimeToUtc === "function") {
       parsedTime = zonedTimeToUtc(time, timeZone);
     } else {
       // Fallback: parse as ISO/local time
       parsedTime = new Date(time);
-      console.warn('zonedTimeToUtc not available, used native Date parsing as fallback');
+      console.warn(
+        "zonedTimeToUtc not available, used native Date parsing as fallback"
+      );
     }
   } catch (e) {
-    console.error('Time parse error:', e);
-    return res.status(400).json({ message: 'Invalid time format' });
+    console.error("Time parse error:", e);
+    return res.status(400).json({ message: "Invalid time format" });
   }
 
   if (!(parsedTime instanceof Date) || isNaN(parsedTime.getTime())) {
-    return res.status(400).json({ message: 'Invalid time format' });
+    return res.status(400).json({ message: "Invalid time format" });
   }
 
   try {
@@ -171,19 +173,18 @@ app.post('/api/data', async (req, res) => {
       htuH,
       bmeT,
       bmeH,
-      bmeP
+      bmeP,
     });
 
     await newMeasurement.save();
-    console.log('Data saved successfully');
+    console.log("Data saved successfully");
 
-    res.status(201).json({ message: 'Data saved successfully' });
+    res.status(201).json({ message: "Data saved successfully" });
   } catch (err) {
-    console.error('Save error:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("Save error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
