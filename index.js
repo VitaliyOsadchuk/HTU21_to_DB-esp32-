@@ -3,15 +3,13 @@ const express = require("express");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 const Measurement = require("./models/Measurement");
-const { zonedTimeToUtc } = require("date-fns-tz");
-const cors = require("cors");
+const { DateTime } = require('luxon');
+const cors = require('cors');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(helmet());
-
-console.log("zonedTimeToUtc typeof:", typeof zonedTimeToUtc);
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -78,7 +76,6 @@ app.get("/api/data", async (req, res) => {
           : prev
       );
 
-      // Якщо closest і latest — один і той же
       if (
         new Date(closest.time).getTime() === new Date(latest.time).getTime()
       ) {
@@ -88,7 +85,6 @@ app.get("/api/data", async (req, res) => {
       return res.json([closest, latest]);
     }
 
-    // Інші діапазони часу
     const now = new Date();
     let fromDate;
 
@@ -133,7 +129,6 @@ app.get("/api/data/latest", async (req, res) => {
 
 app.post("/api/data", async (req, res) => {
   const { time, htuT, htuH, bmeT, bmeH, bmeP } = req.body;
-  const timeZone = "Europe/Kyiv";
 
   console.log("Request:", req.body);
 
@@ -148,24 +143,12 @@ app.post("/api/data", async (req, res) => {
     return res.status(400).json({ message: "Invalid data format" });
   }
 
- let parsedTime;
-  try {
-    if (typeof zonedTimeToUtc === "function") {
-      parsedTime = zonedTimeToUtc(time, timeZone);
-    } else {
-      parsedTime = new Date(time);
-      console.warn(
-        "zonedTimeToUtc not available, used native Date parsing as fallback"
-      );
-    }
-  } catch (e) {
-    console.error("Time parse error:", e);
-    return res.status(400).json({ message: "Invalid time format" });
+  // Parse incoming time (sent as local Kyiv time) and convert to UTC
+  const dt = DateTime.fromISO(time, { zone: 'Europe/Kyiv' });
+  if (!dt.isValid) {
+    return res.status(400).json({ message: 'Invalid time format' });
   }
-
-  if (!(parsedTime instanceof Date) || isNaN(parsedTime.getTime())) {
-    return res.status(400).json({ message: "Invalid time format" });
-  }
+  const parsedTime = dt.toUTC().toJSDate();
 
   try {
     const newMeasurement = new Measurement({
