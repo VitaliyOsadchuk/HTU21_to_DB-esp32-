@@ -3,7 +3,10 @@ const express = require('express');
 const helmet = require('helmet');
 const mongoose = require('mongoose');
 const Measurement = require('./models/Measurement');
-const { zonedTimeToUtc } = require('date-fns-tz');
+// date-fns-tz may export differently depending on environment (CJS vs ESM).
+// Require robustly and support packages that expose exports under `.default`.
+const _dateFnsTz = require('date-fns-tz');
+const zonedTimeToUtc = _dateFnsTz.zonedTimeToUtc || (_dateFnsTz.default && _dateFnsTz.default.zonedTimeToUtc);
 const cors = require('cors');
 
 const app = express();
@@ -127,7 +130,8 @@ app.get('/api/data/latest', async (req, res) => {
 
 app.post('/api/data', async (req, res) => {
   const { time, htuT, htuH, bmeT, bmeH, bmeP } = req.body;
-  const timeZone = 'Europe/Kiev';
+  // Use IANA timezone name. 'Europe/Kyiv' is the current canonical name.
+  const timeZone = 'Europe/Kyiv';
 
   console.log('Request:', req.body);
 
@@ -142,8 +146,21 @@ app.post('/api/data', async (req, res) => {
     return res.status(400).json({ message: 'Invalid data format' });
   }
 
-  const parsedTime = zonedTimeToUtc(time, timeZone);
-  if (isNaN(parsedTime)) {
+  let parsedTime;
+  try {
+    if (typeof zonedTimeToUtc === 'function') {
+      parsedTime = zonedTimeToUtc(time, timeZone);
+    } else {
+      // Fallback: parse as ISO/local time
+      parsedTime = new Date(time);
+      console.warn('zonedTimeToUtc not available, used native Date parsing as fallback');
+    }
+  } catch (e) {
+    console.error('Time parse error:', e);
+    return res.status(400).json({ message: 'Invalid time format' });
+  }
+
+  if (!(parsedTime instanceof Date) || isNaN(parsedTime.getTime())) {
     return res.status(400).json({ message: 'Invalid time format' });
   }
 
