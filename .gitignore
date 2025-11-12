@@ -21,8 +21,3 @@ node_modules
 # system files
 .DS_Store
 Thumbs.db
-
-# lockfiles (optional)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
