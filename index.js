@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const mongoose = require('mongoose');
 const Measurement = require('./models/Measurement');
+const { zonedTimeToUtc } = require('date-fns-tz');
 const cors = require('cors');
 
 const app = express();
@@ -126,6 +127,7 @@ app.get('/api/data/latest', async (req, res) => {
 
 app.post('/api/data', async (req, res) => {
   const { time, htuT, htuH, bmeT, bmeH, bmeP } = req.body;
+  const timeZone = 'Europe/Kiev';
 
   console.log('Request:', req.body);
 
@@ -140,7 +142,7 @@ app.post('/api/data', async (req, res) => {
     return res.status(400).json({ message: 'Invalid data format' });
   }
 
-  const parsedTime = new Date(time);
+  const parsedTime = zonedTimeToUtc(time, timeZone);
   if (isNaN(parsedTime)) {
     return res.status(400).json({ message: 'Invalid time format' });
   }
