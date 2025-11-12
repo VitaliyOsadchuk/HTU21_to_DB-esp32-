@@ -3,7 +3,9 @@ const express = require("express");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 const Measurement = require("./models/Measurement");
-const { zonedTimeToUtc } = require("date-fns-tz");
+const dateFnsTz = require("date-fns-tz");
+const zonedTimeToUtc =
+  dateFnsTz.zonedTimeToUtc || dateFnsTz.default?.zonedTimeToUtc;
 const cors = require("cors");
 
 const app = express();
@@ -134,6 +136,8 @@ app.post("/api/data", async (req, res) => {
   const timeZone = "Europe/Kyiv";
 
   console.log("Request:", req.body);
+  console.log("zonedTimeToUtc typeof:", typeof zonedTimeToUtc);
+  console.log("zonedTimeToUtc content:", zonedTimeToUtc);
 
   if (
     !time ||
