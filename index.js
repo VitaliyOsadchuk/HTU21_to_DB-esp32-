@@ -3,9 +3,7 @@ const express = require("express");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
 const Measurement = require("./models/Measurement");
-const dateFnsTz = require("date-fns-tz");
-const zonedTimeToUtc =
-  dateFnsTz.zonedTimeToUtc || dateFnsTz.default?.zonedTimeToUtc;
+const { zonedTimeToUtc } = require("date-fns-tz");
 const cors = require("cors");
 
 const app = express();
@@ -14,7 +12,6 @@ app.use(express.json());
 app.use(helmet());
 
 console.log("zonedTimeToUtc typeof:", typeof zonedTimeToUtc);
-console.log("zonedTimeToUtc content:", zonedTimeToUtc);
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -151,12 +148,11 @@ app.post("/api/data", async (req, res) => {
     return res.status(400).json({ message: "Invalid data format" });
   }
 
-  let parsedTime;
+ let parsedTime;
   try {
     if (typeof zonedTimeToUtc === "function") {
       parsedTime = zonedTimeToUtc(time, timeZone);
     } else {
-      // Fallback: parse as ISO/local time
       parsedTime = new Date(time);
       console.warn(
         "zonedTimeToUtc not available, used native Date parsing as fallback"
