@@ -13,6 +13,9 @@ app.use(cors());
 app.use(express.json());
 app.use(helmet());
 
+console.log("zonedTimeToUtc typeof:", typeof zonedTimeToUtc);
+console.log("zonedTimeToUtc content:", zonedTimeToUtc);
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("Connected to DB"))
@@ -136,8 +139,6 @@ app.post("/api/data", async (req, res) => {
   const timeZone = "Europe/Kyiv";
 
   console.log("Request:", req.body);
-  console.log("zonedTimeToUtc typeof:", typeof zonedTimeToUtc);
-  console.log("zonedTimeToUtc content:", zonedTimeToUtc);
 
   if (
     !time ||
