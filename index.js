@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 const Measurement = require("./models/Measurement");
 const { DateTime } = require('luxon');
 const cors = require('cors');
+const { DateTime } = require('luxon');
+const cors = require('cors');
 
 const app = express();
 app.use(cors());
@@ -76,6 +78,11 @@ app.get("/", (req, res) => {
 //           : prev
 //       );
 
+      if (
+        new Date(closest.time).getTime() === new Date(latest.time).getTime()
+      ) {
+        return res.status(404).json({ message: "Insufficient distinct data" });
+      }
 //       if (
 //         new Date(closest.time).getTime() === new Date(latest.time).getTime()
 //       ) {
@@ -243,6 +250,7 @@ app.post("/api/data", async (req, res) => {
   if (!dt.isValid) {
     return res.status(400).json({ message: 'Invalid time format' });
   }
+  const parsedTime = dt.toUTC().toJSDate();
   const parsedTime = dt.toUTC().toJSDate();
 
   try {
