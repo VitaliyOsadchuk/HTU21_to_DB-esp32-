@@ -116,7 +116,7 @@ app.get("/", (req, res) => {
 
 // --- API для отримання історії даних (з агрегацією) ---
 
-app.get("/api/data/history", async (req, res) => {
+app.get("/", async (req, res) => {
   try {
     const { range } = req.query;
     let startDate = new Date();
